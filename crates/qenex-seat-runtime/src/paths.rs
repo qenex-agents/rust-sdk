@@ -63,7 +63,9 @@ impl Confinement {
     /// outside the workspace.
     pub fn resolve(&self, requested: &str) -> Result<PathBuf, PathError> {
         let raw = Path::new(requested);
-        if raw.is_absolute() {
+        // `has_root` also catches Windows rooted paths such as `/etc/passwd`,
+        // which are not `is_absolute` there but must still be refused as absolute.
+        if raw.is_absolute() || raw.has_root() {
             return Err(PathError::Absolute);
         }
         if raw

@@ -4,7 +4,6 @@
 //! runtime at construction time and travels with every response and every
 //! child process, so a caller can always attribute an action (R4).
 
-use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -17,8 +16,8 @@ use serde_json::json;
 use tokio::process::Command;
 use tokio::time::timeout;
 
-use crate::paths::{Confinement, PathError};
-use crate::seat::SeatBinding;
+use crate::paths::Confinement;
+use crate::seat::{SeatBinding, TOKEN_ENV};
 
 /// Largest file the runtime reads through `seat_read_file`.
 const MAX_FILE_BYTES: u64 = 1_048_576;
@@ -140,10 +139,6 @@ impl SeatRuntime {
         }
     }
 
-    /// The seat this runtime serves.
-    pub fn binding(&self) -> &SeatBinding {
-        &self.binding
-    }
 }
 
 #[tool_router(server_handler)]
@@ -155,6 +150,7 @@ impl SeatRuntime {
             "seat": self.binding.seat(),
             "workspace": self.binding.workspace().to_string_lossy(),
             "api": self.binding.api(),
+            "token_env": TOKEN_ENV,
             "confinement": if self.binding.allow_global() { "disabled" } else { "workspace-only" },
             "programs": PROGRAM_ALLOWLIST,
             "git_subcommands": GIT_READONLY_SUBCOMMANDS,
@@ -272,7 +268,7 @@ impl SeatRuntime {
     ) -> Result<CallToolResult, ErrorData> {
         if self.binding.allow_global() {
             return Ok(tool_error(
-                "seat confinement is disabled for this runtime; writes are refused",
+                "seat confinement is disabled for this runtime; writes are refused".to_string(),
             ));
         }
         let path = match self.confinement.resolve(&request.path) {
@@ -355,14 +351,4 @@ fn truncate(text: &str) -> String {
         end -= 1;
     }
     format!("{}\n[truncated at {MAX_OUTPUT_BYTES} bytes]", &text[..end])
-}
-
-/// Path of the seat workspace, for diagnostics.
-pub fn workspace_of(binding: &SeatBinding) -> &Path {
-    binding.workspace()
-}
-
-/// Expose the path error type to callers that map errors themselves.
-pub fn describe_path_error(error: PathError) -> String {
-    error.to_string()
 }

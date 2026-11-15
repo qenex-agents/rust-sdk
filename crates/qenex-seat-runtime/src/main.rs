@@ -40,6 +40,7 @@ async fn main() -> Result<()> {
     tracing::info!(
         seat = %binding.seat(),
         workspace = %binding.workspace().display(),
+        identity = %binding.info_line(),
         "qenex seat runtime starting"
     );
 
